@@ -14,7 +14,7 @@ public class BankApp {
         System.out.print("Full name: ");
         String fullName = sc.nextLine().trim();
 
-        System.out.print("Create password: ");
+        System.out.print("Enter the password: ");
         String password = sc.nextLine();
 
         System.out.print("Select your bank account (Kaspi or Halyk): ");
@@ -27,22 +27,32 @@ public class BankApp {
 
         payment = new FraudDetectionDecorator(payment);
 
-        System.out.print("Apply cashback? (yes/no): ");
-        String cbAns = sc.nextLine().trim().toLowerCase(Locale.ROOT);
-        if (cbAns.startsWith("y")) {
-            System.out.print("Do you want cashback (5, 10, or 15%)? Enter 0 to skip: ");
-            int choice;
-            try {
-                choice = Integer.parseInt(sc.nextLine().trim());
-                if (choice == 5 || choice == 10 || choice == 15) {
-                    double p = choice / 100.0;
-                    payment = new CashbackDecorator(payment, account, p);
-                } else if (choice != 0) {
-                    System.out.println("Invalid choice. Cashback not applied.");
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input. Cashback not applied.");
+        System.out.print("Do you want a discount (5%, 10%, 15%)? Enter 0 to skip: ");
+        double discountChoice = 0.0;
+        try {
+            discountChoice = Double.parseDouble(sc.nextLine().trim());
+            if (discountChoice == 5 || discountChoice == 10 || discountChoice == 15) {
+                double discountPercent = discountChoice / 100.0;
+                payment = new DiscountDecorator(payment, discountPercent);
+            } else if (discountChoice != 0) {
+                System.out.println("Invalid choice. Discount not applied.");
             }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Discount not applied.");
+        }
+
+        System.out.print("Do you want cashback (5%, 10%, 15%)? Enter 0 to skip: ");
+        int choice;
+        try {
+            choice = Integer.parseInt(sc.nextLine().trim());
+            if (choice == 5 || choice == 10 || choice == 15) {
+                double p = choice / 100.0;
+                payment = new CashbackDecorator(payment, account, p);
+            } else if (choice != 0) {
+                System.out.println("Invalid choice. Cashback not applied.");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Cashback not applied.");
         }
 
         System.out.println("Your current balance: " + formatMoney(account.getBalance()) + " ₸");
@@ -66,7 +76,6 @@ public class BankApp {
 
         System.out.println("Verification required. Please re-enter your password: ");
         String verify = sc.nextLine();
-
         if (!auth.check(fullName, verify)) {
             System.out.println("Verification failed: incorrect password. Transaction canceled.");
             return;
@@ -78,14 +87,19 @@ public class BankApp {
             return;
         }
 
-        boolean withdrawn = account.withdraw(amount);
+        double finalAmount = amount;
+        if (discountChoice > 0) {
+            finalAmount = amount * (1 - discountChoice / 100.0);
+        }
+
+        boolean withdrawn = account.withdraw(finalAmount);
         if (!withdrawn) {
             System.out.println("Error: transaction failed during balance update.");
             return;
         }
 
         System.out.println("✅ Transaction successful.");
-        System.out.println("You have withdrawn: " + formatMoney(amount) + " ₸");
+        System.out.println("You have withdrawn: " + formatMoney(finalAmount) + " ₸");
         System.out.println("Remaining balance: " + formatMoney(account.getBalance()) + " ₸");
     }
 
