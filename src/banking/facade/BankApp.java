@@ -25,7 +25,6 @@ public class BankApp {
         AccountService account = factory.createAccountService();
         PaymentService payment = factory.createPaymentService();
 
-        payment = new LoggingDecorator(payment);
         payment = new FraudDetectionDecorator(payment);
 
         System.out.print("Apply cashback? (yes/no): ");
