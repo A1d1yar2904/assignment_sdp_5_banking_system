@@ -8,104 +8,204 @@ import java.util.Locale;
 import java.util.Scanner;
 
 public class BankApp {
+    private String fullName;
+    private String password;
+    private double kaspiBalance = 200000;
+    private double halykBalance = 100000;
+
     public void run() {
         Scanner sc = new Scanner(System.in, "UTF-8");
 
-        System.out.print("Full name: ");
-        String fullName = sc.nextLine().trim();
+        int choice;
+        do {
+            System.out.println("\nChoose an option:");
+            System.out.println("1. Login");
+            System.out.println("2. Go to store");
+            System.out.println("3. Withdraw money");
+            System.out.println("4. Exit");
 
-        System.out.print("Enter the password: ");
-        String password = sc.nextLine();
+            System.out.print("Enter your choice: ");
+            choice = sc.nextInt();
 
-        System.out.print("Select your bank account (Kaspi or Halyk): ");
-        String bankName = sc.nextLine().trim();
+            switch (choice) {
+                case 1:
+                    login(sc);
+                    break;
+                case 2:
+                    goToStore(sc);
+                    break;
+                case 3:
+                    withdrawMoney(sc);
+                    break;
+                case 4:
+                    System.out.println("Exiting...");
+                    break;
+                default:
+                    System.out.println("Invalid choice! Please choose again.");
+                    break;
+            }
+        } while (choice != 4);
+    }
+
+    private void login(Scanner sc) {
+        System.out.print("\nEnter your name: ");
+        fullName = sc.next();
+        System.out.print("Enter your password: ");
+        password = sc.next();
+
+        BankFactory factory = new KaspiFactory();
+        AuthService auth = factory.createAuthService(password);
+        if (auth.check(fullName, password)) {
+            System.out.println("Login successful!");
+        } else {
+            System.out.println("Invalid credentials. Try again.");
+        }
+    }
+
+    private void goToStore(Scanner sc) {
+        if (fullName == null || password == null) {
+            System.out.println("Please login first.");
+            return;
+        }
+
+        System.out.print("\nEnter your name: ");
+        String enteredName = sc.next();
+        System.out.print("Enter your password: ");
+        String enteredPassword = sc.next();
+
+        if (!enteredName.equals(fullName) || !enteredPassword.equals(password)) {
+            System.out.println("Invalid credentials. Access denied.");
+            return;
+        }
+
+        System.out.println("\nChoose a bank account:");
+        System.out.println("1. Kaspi");
+        System.out.println("2. Halyk");
+        System.out.print("Enter your choice: ");
+        int bankChoice = sc.nextInt();
+
+        double balance = (bankChoice == 1) ? kaspiBalance : halykBalance;
+        String selectedBank = (bankChoice == 1) ? "Kaspi" : "Halyk";
+
+        System.out.println("\nYour current balance in " + selectedBank + ": " + formatMoney(balance) + " ₸");
+
+        System.out.print("\nEnter the amount you want to spend: ");
+        double amount = sc.nextDouble();
+
+        if (amount > balance) {
+            System.out.println("Insufficient funds. Your balance: " + formatMoney(balance) + " ₸");
+            return;
+        }
+
+        System.out.println("\nChoose a discount amount:");
+        System.out.println("1. 5%");
+        System.out.println("2. 10%");
+        System.out.println("3. 15%");
+        System.out.print("Enter your choice: ");
+        int discountChoice = sc.nextInt();
+        double discount = 0;
+        switch (discountChoice) {
+            case 1:
+                discount = 0.05;
+                break;
+            case 2:
+                discount = 0.10;
+                break;
+            case 3:
+                discount = 0.15;
+                break;
+            default:
+                System.out.println("Invalid choice! No discount applied.");
+                break;
+        }
+
+        System.out.println("Your total is: " + amount + " ₸. Applying discount...");
+        amount -= amount * discount;
+        System.out.println("[Discount] - " + (discount * 100) + "% applied → new amount: " + amount + " ₸");
+
+        if (bankChoice == 1) {
+            kaspiBalance -= amount;
+        } else {
+            halykBalance -= amount;
+        }
+
+        System.out.println("Purchase completed successfully!");
+        System.out.println("Remaining balance: " + formatMoney((bankChoice == 1) ? kaspiBalance : halykBalance) + " ₸");
+    }
+
+    private void withdrawMoney(Scanner sc) {
+        if (fullName == null || password == null) {
+            System.out.println("Please login first.");
+            return;
+        }
+
+        System.out.print("\nEnter your name: ");
+        String enteredName = sc.next();
+        System.out.print("Enter your password: ");
+        String enteredPassword = sc.next();
+
+        if (!enteredName.equals(fullName) || !enteredPassword.equals(password)) {
+            System.out.println("Invalid credentials. Access denied.");
+            return;
+        }
+
+        System.out.print("\nEnter your bank account (Kaspi or Halyk): ");
+        String bankName = sc.next().trim();
 
         BankFactory factory = selectFactory(bankName);
-        AuthService auth = factory.createAuthService(password);
         AccountService account = factory.createAccountService();
         PaymentService payment = factory.createPaymentService();
 
-        payment = new FraudDetectionDecorator(payment);
-
-        System.out.print("Do you want a discount (5%, 10%, 15%)? Enter 0 to skip: ");
-        double discountChoice = 0.0;
-        try {
-            discountChoice = Double.parseDouble(sc.nextLine().trim());
-            if (discountChoice == 5 || discountChoice == 10 || discountChoice == 15) {
-                double discountPercent = discountChoice / 100.0;
-                payment = new DiscountDecorator(payment, discountPercent);
-            } else if (discountChoice != 0) {
-                System.out.println("Invalid choice. Discount not applied.");
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Discount not applied.");
-        }
-
-        System.out.print("Do you want cashback (5%, 10%, 15%)? Enter 0 to skip: ");
-        int choice;
-        try {
-            choice = Integer.parseInt(sc.nextLine().trim());
-            if (choice == 5 || choice == 10 || choice == 15) {
-                double p = choice / 100.0;
-                payment = new CashbackDecorator(payment, account, p);
-            } else if (choice != 0) {
-                System.out.println("Invalid choice. Cashback not applied.");
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Cashback not applied.");
-        }
-
-        System.out.println("Your current balance: " + formatMoney(account.getBalance()) + " ₸");
         System.out.print("Enter withdrawal amount: ");
-        double amount;
-        try {
-            amount = Double.parseDouble(sc.nextLine().trim());
-            if (amount <= 0) {
-                System.out.println("Error: the amount must be positive.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Error: invalid amount format.");
-            return;
-        }
+        double amount = sc.nextDouble();
 
         if (amount > account.getBalance()) {
             System.out.println("Error: insufficient funds. Your balance: " + formatMoney(account.getBalance()) + " ₸");
             return;
         }
 
-        System.out.println("Verification required. Please re-enter your password: ");
-        String verify = sc.nextLine();
-        if (!auth.check(fullName, verify)) {
-            System.out.println("Verification failed: incorrect password. Transaction canceled.");
-            return;
+        System.out.println("\nChoose a cashback amount:");
+        System.out.println("1. 5%");
+        System.out.println("2. 10%");
+        System.out.println("3. 15%");
+        System.out.print("Enter your choice: ");
+        int cashbackChoice = sc.nextInt();
+        double cashback = 0;
+        switch (cashbackChoice) {
+            case 1:
+                cashback = 0.05;
+                break;
+            case 2:
+                cashback = 0.10;
+                break;
+            case 3:
+                cashback = 0.15;
+                break;
+            default:
+                System.out.println("Invalid choice! No cashback applied.");
+                break;
         }
 
-        boolean ok = payment.pay(amount, fullName);
-        if (!ok) {
-            System.out.println("Transaction declined by the payment service.");
-            return;
-        }
+        payment = new FraudDetectionDecorator(payment);
+        payment = new CashbackDecorator(payment, account, cashback);
 
-        double finalAmount = amount;
-        if (discountChoice > 0) {
-            finalAmount = amount * (1 - discountChoice / 100.0);
-        }
+        boolean ok = payment.pay(amount, "User");
 
-        boolean withdrawn = account.withdraw(finalAmount);
-        if (!withdrawn) {
-            System.out.println("Error: transaction failed during balance update.");
-            return;
-        }
+        if (ok) {
+            boolean withdrawn = account.withdraw(amount);
+            double cashbackAmount = amount * cashback;
+            account.deposit(cashbackAmount);
 
-        System.out.println("✅ Transaction successful.");
-        System.out.println("You have withdrawn: " + formatMoney(finalAmount) + " ₸");
-        System.out.println("Remaining balance: " + formatMoney(account.getBalance()) + " ₸");
+            System.out.println("✅ Transaction successful.");
+            System.out.println("You have withdrawn: " + formatMoney(amount) + " ₸");
+            System.out.println("Cashback received: " + formatMoney(cashbackAmount) + " ₸");
+            System.out.println("Remaining balance: " + formatMoney(account.getBalance()) + " ₸");
+        } else {
+            System.out.println("Transaction failed.");
+        }
     }
-
     private BankFactory selectFactory(String input) {
-        String s = input.toLowerCase(Locale.ROOT);
-        if (s.contains("kaspi") || s.contains("кас")) return new KaspiFactory();
+        if (input.equalsIgnoreCase("Kaspi")) return new KaspiFactory();
         return new HalykFactory();
     }
 
